@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Recruitment Application</title>
+
+</head>
+<style>
+
+/* I used Jens Gruber's CSS for the boxplots
+http://bl.ocks.org/jensgrubert/7789216*/
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.box {
+  font: 10px sans-serif;
+}
+
+.box line,
+.box rect,
+.box circle {
+  fill: steelblue;
+  stroke: #000;
+  stroke-width: 1px;
+}
+
+.box .center {
+  stroke-dasharray: 3,3;
+}
+
+.box .outlier {
+  fill: none;
+  stroke: #000;
+}
+
+.axis {
+  font: 12px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+</style>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="../static/scripts/box.js"></script>
+    <script>
+
+        d3.json("/api/max_income", function(json){
+
+            console.log(json.customers);
+
+            var labels = true; // show the text labels beside individual boxplots?
+
+            var margin = {top: 30, right: 50, bottom: 85, left: 50};
+            var width = 800 - margin.left - margin.right;
+            var height = 400 - margin.top - margin.bottom;
+
+            var min = 1, max = 30;
+            var data = [["Neither", []], ["Exercisers", []], ["Smokers", []], ["Both", []]];
+
+            (json.customers).forEach(function(customer){
+                //console.log(customer);
+                if (customer.is_smoker === "1"){
+                    if (customer.is_exerciser === "1")
+                        data[3][1].push(customer.economic_stability);
+                    else
+                        data[2][1].push(customer.economic_stability);
+                }
+                else{
+                    if (customer.is_exerciser === "1")
+                        data[1][1].push(customer.economic_stability);
+                    else
+                        data[0][1].push(customer.economic_stability);
+                }
+            });
+
+            console.log(data);
+
+            // see http://bl.ocks.org/jensgrubert/7789216
+
+            var chart = d3.box()
+                .whiskers(iqr(1.5))
+                .height(height)
+                .domain([min, max])
+                .showLabels(labels);
+
+            var svg = d3.select("body").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .attr("class", "box")
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            // draw x axis
+            var x = d3.scaleBand()
+		        .domain( data.map(function(d) { console.log(d); return d[0] } ) )
+		        .rangeRound([0 , width])
+                .padding(0.7, 0.3);
+
+            var xAxis = d3.axisBottom()
+                .scale(x);
+
+            // the y-axis
+            var y = d3.scaleLinear()
+                .domain([min, max])
+                .range([height + margin.top, 0 + margin.top]);
+
+            var yAxis = d3.axisLeft()
+                .scale(y);
+
+            // draw the boxplots
+                svg.selectAll(".box")
+                  .data(data)
+                  .enter().append("g")
+                    .attr("transform", function(d) { return "translate(" +  x(d[0])  + "," + margin.top + ")"; } )
+                  .call(chart.width(x.bandwidth()));
+
+            // add a title
+            svg.append("text")
+                .attr("x", (width / 2))
+                .attr("y", 0 + (margin.top / 2))
+                .attr("text-anchor", "middle")
+                .style("font-size", "18px")
+                //.style("text-decoration", "underline")
+                .text("Economic Stability of Potential Customers with Different Lifestyles");
+
+             // draw y axis
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+
+            // draw x axis
+            svg.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + (height  + margin.top + 10) + ")")
+              .call(xAxis);
+
+            svg.append("text")             // text label for the x axis
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + (height  + margin.top + 25) + ")")
+                .attr("x", (width / 2) )
+                .attr("y",  10 )
+                .attr("dy", ".71em")
+                .style("text-anchor", "middle")
+                .style("font-size", "16px")
+                .text("Lifestyle Choices");
+
+            svg.append("text")              // text label for the y axis
+                .attr("class", "y axis")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .style("font-size", "16px")
+                .text("Stability (1: High, 30: Low)");
+        });
+
+        function iqr(k) {
+            return function(d, i) {
+                var q1 = d.quartiles[0],
+                    q3 = d.quartiles[2],
+                    iqr = (q3 - q1) * k,
+                    i = -1,
+                    j = d.length;
+                while (d[++i] < q1 - iqr);
+                while (d[--j] > q3 + iqr);
+                return [i, j];
+            };
+        }
+
+    </script>
+</body>
+</html>
